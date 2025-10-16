@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 07-insert-default-admin
+      author: system
+      changes:
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  value: 1
+              - column:
+                  name: username
+                  value: admin
+              - column:
+                  name: email
+                  value: admin@bankcards.com
+              - column:
+                  name: password
+                  # Пароль: admin123 (BCrypt хэш)
+                  value: $2a$10$sL1.MU5GnHrHQsR61OTe..Ma5.VW7s2KU6z/dKV8k5twV/DGGh5PO
+              - column:
+                  name: first_name
+                  value: Admin
+              - column:
+                  name: last_name
+                  value: User
+              - column:
+                  name: enabled
+                  valueBoolean: true
+        - insert:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: user_id
+                  value: 1
+              - column:
+                  name: role_id
+                  value: 2
