@@ -1,1 +1,322 @@
-# Здесь будет OpenAPI описание всех доступных эндпоинтов и моделей данных.
+openapi: 3.1.0
+info:
+  title: Bank Cards Management System API
+  description: |
+    REST API для управления банковскими картами, пользователями и переводами.  
+    Поддерживает роли:
+      - **ROLE_USER** — операции с собственными картами и транзакциями
+      - **ROLE_ADMIN** — полное управление пользователями и картами
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local server
+
+tags:
+  - name: Authentication
+    description: Регистрация и вход пользователей
+  - name: Users
+    description: Управление пользователями (только для админов)
+  - name: Cards
+    description: Операции с банковскими картами
+  - name: Transfers
+    description: Переводы и история транзакций
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RoleName:
+      type: string
+      enum: [ROLE_USER, ROLE_ADMIN]
+
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          example: johndoe@gmail.com
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleName'
+
+    UserRegistrationDto:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          example: johndoe@gmail.com
+        password:
+          type: string
+          example: mySecret123
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+
+    CardStatus:
+      type: string
+      enum: [ACTIVE, BLOCKED, EXPIRED]
+
+    CardDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        cardNumber:
+          type: string
+          example: "**** **** **** 1234"
+        cardHolder:
+          type: string
+          example: John Doe
+        expiryDate:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/CardStatus'
+        balance:
+          type: number
+          format: double
+          example: 1200.50
+
+    TransactionStatus:
+      type: string
+      enum: [SUCCESS, FAILED, PENDING]
+
+    TransactionDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromCardId:
+          type: integer
+        toCardId:
+          type: integer
+        amount:
+          type: number
+          format: double
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationDto'
+      responses:
+        '201':
+          description: Пользователь успешно зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          description: Ошибка валидации данных
+
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Вход в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Авторизация успешна
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: Получить всех пользователей (ADMIN)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+          description: Номер страницы
+        - name: size
+          in: query
+          schema:
+            type: integer
+          description: Размер страницы
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDto'
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Получить пользователя по ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Пользователь найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '404':
+          description: Пользователь не найден
+    put:
+      tags: [Users]
+      summary: Обновить данные пользователя
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationDto'
+      responses:
+        '200':
+          description: Пользователь обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+    delete:
+      tags: [Users]
+      summary: Удалить пользователя
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Пользователь удален
+
+  /api/users/{id}/roles/{roleName}:
+    put:
+      tags: [Users]
+      summary: Назначить роль пользователю
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+        - name: roleName
+          in: path
+          schema:
+            $ref: '#/components/schemas/RoleName'
+      responses:
+        '200':
+          description: Роль назначена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+    delete:
+      tags: [Users]
+      summary: Удалить роль у пользователя
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+        - name: roleName
+          in: path
+          schema:
+            $ref: '#/components/schemas/RoleName'
+      responses:
+        '200':
+          description: Роль удалена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+
+  /api/users/{id}/toggle-status:
+    put:
+      tags: [Users]
+      summary: Включить/выключить учетную запись пользователя
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Статус пользователя изменен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+
+security:
+  - BearerAuth: []
